@@ -13,8 +13,15 @@ const { PORT } = process.env;
 const responseObjLookup = {};
 const socketLookup = {};
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const rawBodySaver = (req, res, buf, encoding) => {
+  if (buf && buf.length) {
+    req.rawBody = buf.toString(encoding || 'utf8');
+  }
+};
+
+app.use(express.json({ verify: rawBodySaver }));
+app.use(express.urlencoded({ verify: rawBodySaver, extended: true }));
+app.use(express.raw({ verify: rawBodySaver, type: '*/*' }));
 
 io.on('connection', (socket) => {
   const {
@@ -66,7 +73,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/:hostId?', (req, res) => {
-  const { method, headers, query, path, params, body } = req;
+  const { method, headers, query, path, params, body, rawBody } = req;
   const { hostId } = params;
   const requestId = uuid();
 
@@ -78,6 +85,7 @@ app.use('/:hostId?', (req, res) => {
     path,
     requestId,
     body,
+    rawBody,
   };
 
   console.info(`Forwarding the request: ${requestId}`, data);
