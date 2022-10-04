@@ -13,7 +13,15 @@ const { PORT } = process.env;
 const responseObjLookup = {};
 const socketLookup = {};
 
-app.use(express.json());
+const rawBodySaver = (req, res, buf, encoding) => {
+  if (buf && buf.length) {
+    req.rawBody = buf.toString(encoding || 'utf8');
+  }
+};
+
+app.use(express.json({ verify: rawBodySaver }));
+app.use(express.urlencoded({ verify: rawBodySaver, extended: true }));
+app.use(express.raw({ verify: rawBodySaver, type: '*/*' }));
 
 io.on('connection', (socket) => {
   const {
@@ -44,6 +52,11 @@ io.on('connection', (socket) => {
   socket.on('response', (payload) => {
     const { requestId, data, status = 200, headers } = payload;
     if (responseObjLookup[requestId]) {
+      console.info(`Responding back with response for request: ${requestId}`, {
+        status,
+        headers,
+        data,
+      });
       const res = responseObjLookup[requestId];
       // pass received status, headers & data as is
       res.set(headers);
@@ -60,7 +73,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/:hostId?', (req, res) => {
-  const { method, headers, query, path, params, body } = req;
+  const { method, headers, query, path, params, body, rawBody } = req;
   const { hostId } = params;
   const requestId = uuid();
 
@@ -72,9 +85,10 @@ app.use('/:hostId?', (req, res) => {
     path,
     requestId,
     body,
+    rawBody,
   };
 
-  console.info('Forwarding the request', data);
+  console.info(`Forwarding the request: ${requestId}`, data);
   io.sockets.in(hostId).emit('request', data);
 
   // we don't respond to the request, but just track this response obj in memory
