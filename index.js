@@ -14,6 +14,7 @@ const responseObjLookup = {};
 const socketLookup = {};
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 io.on('connection', (socket) => {
   const {
@@ -44,6 +45,11 @@ io.on('connection', (socket) => {
   socket.on('response', (payload) => {
     const { requestId, data, status = 200, headers } = payload;
     if (responseObjLookup[requestId]) {
+      console.info(`Responding back with response for request: ${requestId}`, {
+        status,
+        headers,
+        data,
+      });
       const res = responseObjLookup[requestId];
       // pass received status, headers & data as is
       res.set(headers);
@@ -74,7 +80,7 @@ app.use('/:hostId?', (req, res) => {
     body,
   };
 
-  console.info('Forwarding the request', data);
+  console.info(`Forwarding the request: ${requestId}`, data);
   io.sockets.in(hostId).emit('request', data);
 
   // we don't respond to the request, but just track this response obj in memory
