@@ -7,6 +7,7 @@ const http = require('http').Server(app);
 
 const io = require('socket.io')(http);
 const { v4: uuid } = require('uuid');
+const logger = require('./logger');
 
 const { PORT } = process.env;
 
@@ -37,7 +38,7 @@ io.on('connection', (socket) => {
     return;
   }
 
-  console.log('Socket client connected', { hostId });
+  logger.log('Socket client connected', { hostId });
 
   // join unique room for this host
   socket.join(hostId);
@@ -45,14 +46,14 @@ io.on('connection', (socket) => {
   socketLookup[hostId] = socket.id;
 
   socket.on('disconnect', () => {
-    console.log('Socket client disconnected', { hostId });
+    logger.log('Socket client disconnected', { hostId });
     delete socketLookup[hostId];
   });
 
   socket.on('response', (payload) => {
     const { requestId, data, status = 200, headers } = payload;
     if (responseObjLookup[requestId]) {
-      console.info(`Responding back with response for request: ${requestId}`, {
+      logger.info(`Responding back with response for request: ${requestId}`, {
         status,
         headers,
         data,
@@ -88,7 +89,7 @@ app.use('/:hostId?', (req, res) => {
     rawBody,
   };
 
-  console.info(`Forwarding the request: ${requestId}`, data);
+  logger.info(`Forwarding the request: ${requestId}`, data);
   io.sockets.in(hostId).emit('request', data);
 
   // we don't respond to the request, but just track this response obj in memory
@@ -98,5 +99,5 @@ app.use('/:hostId?', (req, res) => {
 });
 
 http.listen(PORT, () => {
-  console.log(`listening on *:${PORT}`);
+  logger.info(`listening on *:${PORT}`);
 });
