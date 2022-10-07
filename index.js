@@ -1,4 +1,5 @@
 require('dotenv-safe').config();
+const logger = require('./logger');
 
 const express = require('express');
 
@@ -37,7 +38,7 @@ io.on('connection', (socket) => {
     return;
   }
 
-  console.log('Socket client connected', { hostId });
+  logger.info('Socket client connected', { hostId });
 
   // join unique room for this host
   socket.join(hostId);
@@ -45,7 +46,7 @@ io.on('connection', (socket) => {
   socketLookup[hostId] = socket.id;
 
   socket.on('disconnect', () => {
-    console.log('Socket client disconnected', { hostId });
+    logger.info('Socket client disconnected', { hostId });
     delete socketLookup[hostId];
   });
 
@@ -65,6 +66,10 @@ io.on('connection', (socket) => {
       // now delete the response object as we no longer need that
       delete responseObjLookup[requestId];
     }
+  });
+
+  socket.on('error', (event) => {
+    logger.error(event);
   });
 });
 
@@ -98,5 +103,5 @@ app.use('/:hostId?', (req, res) => {
 });
 
 http.listen(PORT, () => {
-  console.log(`listening on *:${PORT}`);
+  logger.info(`listening on *:${PORT}`);
 });
