@@ -30,3 +30,27 @@ Exposy system has 2 components:
 ### Exposy CLI Design
 
 ![exposy cli](https://user-images.githubusercontent.com/15920476/193417942-f1792f38-6c54-4a0d-9d64-bc039e4fbc9a.png)
+
+## Willing to Contribute?
+
+If you are reading this section then first of all we would like to thank you. A great product requires a great team and visionary mind. Our main aim of starting this project is to help the developers at ground level and make their life easy. If you are inclining towards this vision lets work together and build plantes' most easy and usable tool
+
+We tried to keep the dev setup as easy as Exposy working. Follow the below steps to setup full fledged working exposy on your local machine
+
+> To test/develop exposy-cli locally,
+> hosted instance of exposy server (local or cloud) is required. Follow below steps to setup exposy-server local instance
+
+### Setup Exposy Server
+
+- [exposy-server](https://github.com/exposy/exposy-server)
+- Run `npm install`
+- Create `.env` file from `.env.example`
+- Run `npm run dev`
+
+### Setup Exposy CLI
+
+- Fork [exposy-cli](https://github.com/exposy/exposy-cli)
+- Run `npm install`
+- Run `npm install -g .` from the root directory (required for recognizing `exposy` command in terminal )
+- Run `exposy config` to configure exposy-server settings
+- Run `exposy start -p <any local app's port which you want to expose>`
