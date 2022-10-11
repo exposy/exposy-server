@@ -1,5 +1,6 @@
 require('dotenv-safe').config();
 const logger = require('./logger');
+const jwt = require('jsonwebtoken');
 
 const express = require('express');
 
@@ -8,8 +9,15 @@ const http = require('http').Server(app);
 
 const io = require('socket.io')(http);
 const { v4: uuid } = require('uuid');
+const MESSAGES = require('./constants/messages');
 
-const { PORT } = process.env;
+const {
+  PORT,
+  USERNAME,
+  PASSWORD,
+  SECRET_KEY,
+  IS_AUTH_ENABLED = 0,
+} = process.env;
 
 const responseObjLookup = {};
 const socketLookup = {};
@@ -23,6 +31,31 @@ const rawBodySaver = (req, res, buf, encoding) => {
 app.use(express.json({ verify: rawBodySaver }));
 app.use(express.urlencoded({ verify: rawBodySaver, extended: true }));
 app.use(express.raw({ verify: rawBodySaver, type: '*/*' }));
+
+// using auth middleware
+io.use(function (socket, next) {
+  // env variable gets converted to string thats why followed numeric approach
+  if (Number(IS_AUTH_ENABLED) === 0) next();
+  else {
+    if (socket.handshake.query) {
+      jwt.verify(
+        socket.handshake.query.token,
+        SECRET_KEY,
+        function (err, decoded) {
+          if (err) {
+            logger.error(MESSAGES.ERROR.INVALID_TOKEN);
+            return next(new Error(MESSAGES.ERROR.INVALID_TOKEN));
+          }
+          socket.decoded = decoded;
+          next();
+        }
+      );
+    } else {
+      logger.error(MESSAGES.ERROR.INVALID_TOKEN);
+      return next(new Error(MESSAGES.ERROR.INVALID_TOKEN));
+    }
+  }
+});
 
 io.on('connection', (socket) => {
   const {
@@ -67,15 +100,37 @@ io.on('connection', (socket) => {
       delete responseObjLookup[requestId];
     }
   });
-
-  socket.on('error', (event) => {
-    logger.error(event);
-  });
 });
 
 app.get('/', (req, res) => {
   res.send('Up & running');
 });
+
+/** BASIC AUTH PROTECTED ROUTES START */
+
+// make sure the routes you want to keep authenticated present below this middleware
+app.use((req, res, next) => {
+  const auth = { login: USERNAME, password: PASSWORD };
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64')
+    .toString()
+    .split(':');
+
+  if (login && password && login === auth.login && password === auth.password) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+});
+
+app.get('/authenticate', (_req, res) => {
+  // later on we can capture user details which could be used while generating token
+  const token = jwt.sign({ USERNAME, PASSWORD }, SECRET_KEY);
+  return res.send(token);
+});
+
+/** BASIC AUTH PROTECTED ROUTES END */
 
 app.use('/:hostId?', (req, res) => {
   const { method, headers, query, path, params, body, rawBody } = req;
